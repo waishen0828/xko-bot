@@ -1,36 +1,28 @@
-// --------------------
-// 基本模块
-// --------------------
+// ====== 保持在线的服务器 ======
 const express = require("express");
-const { 
-    Client, 
-    GatewayIntentBits, 
-    SlashCommandBuilder, 
-    REST, 
-    Routes 
-} = require("discord.js");
+const app = express();
 
-const server = express();
-
-server.all("/", (req, res) => {
+app.get("/", (req, res) => {
     res.send("Bot is running!");
 });
 
-function keepAlive() {
-    server.listen(3000, () => {
-        console.log("Server is Ready!");
-    });
-}
-keepAlive();
+app.listen(3000, () => {
+    console.log("Status server online.");
+});
 
-// --------------------
-// Bot Token（在 Koyeb 里面设置，不写在这里）
-// --------------------
+// ====== Discord Bot ======
+const { 
+    Client, 
+    GatewayIntentBits,
+    REST,
+    Routes,
+    SlashCommandBuilder 
+} = require("discord.js");
+
+// 使用环境变量读取 TOKEN（Render / Railway）
 const TOKEN = process.env.TOKEN;
 
-// --------------------
-// Discord Client
-// --------------------
+// 建立客户端
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -38,47 +30,41 @@ const client = new Client({
     ]
 });
 
-// --------------------
-// 创建 Slash 指令
-// --------------------
+// Slash 指令 /send
 const commands = [
     new SlashCommandBuilder()
         .setName("send")
         .setDescription("让机器人发送自定义消息")
         .addChannelOption(option =>
             option.setName("channel")
-                .setDescription("选择要发送的频道")
+                .setDescription("选择频道")
                 .setRequired(true)
         )
         .addStringOption(option =>
             option.setName("content")
-                .setDescription("要发送的内容")
+                .setDescription("要发送的文字")
                 .setRequired(true)
         )
 ].map(cmd => cmd.toJSON());
 
-// --------------------
-// 注册 Slash 指令
-// --------------------
-const rest = new REST({ version: "10" }).setToken(TOKEN);
-
+// Bot ready 事件
 client.once("ready", async () => {
     console.log(`Bot 已上线：${client.user.tag}`);
+
+    const rest = new REST({ version: "10" }).setToken(TOKEN);
 
     try {
         await rest.put(
             Routes.applicationCommands(client.user.id),
             { body: commands }
         );
-        console.log("Slash 指令已成功注册");
-    } catch (err) {
-        console.error("注册指令失败：", err);
+        console.log("Slash 指令已注册");
+    } catch (error) {
+        console.error("注册指令失败", error);
     }
 });
 
-// --------------------
-// 处理 Slash 指令
-// --------------------
+// 处理 /send
 client.on("interactionCreate", async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
@@ -87,15 +73,9 @@ client.on("interactionCreate", async (interaction) => {
         const content = interaction.options.getString("content");
 
         await channel.send(content);
-
-        await interaction.reply({ 
-            content: `已发送到 ${channel}`,
-            ephemeral: true
-        });
+        await interaction.reply({ content: "消息已发送！", ephemeral: true });
     }
 });
 
-// --------------------
 // 登录
-// --------------------
 client.login(TOKEN);
